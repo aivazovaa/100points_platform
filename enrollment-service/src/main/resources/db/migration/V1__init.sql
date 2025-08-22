@@ -1,0 +1,2 @@
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+CREATE TABLE IF NOT EXISTS enrollments (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), user_id UUID NOT NULL, course_id UUID NOT NULL, UNIQUE(user_id, course_id));

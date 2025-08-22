@@ -1,0 +1,73 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: 100points
+      POSTGRES_PASSWORD: 100points
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./infra/postgres/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U 100points"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+
+  auth-service:
+    build: ./auth-service
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/100points_auth
+      SPRING_DATASOURCE_USERNAME: 100points
+      SPRING_DATASOURCE_PASSWORD: 100points
+      JWT_SECRET: dev-very-secret-key
+    depends_on:
+      - postgres
+    ports:
+      - "8081:8081"
+
+  course-service:
+    build: ./course-service
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/100points_course
+      SPRING_DATASOURCE_USERNAME: 100points
+      SPRING_DATASOURCE_PASSWORD: 100points
+    depends_on:
+      - postgres
+    ports:
+      - "8082:8082"
+
+  enrollment-service:
+    build: ./enrollment-service
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/100points_enrollment
+      SPRING_DATASOURCE_USERNAME: 100points
+      SPRING_DATASOURCE_PASSWORD: 100points
+    depends_on:
+      - postgres
+    ports:
+      - "8083:8083"
+
+  gateway-service:
+    build: ./gateway-service
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_SECRET: dev-very-secret-key
+      RATE_LIMIT_REPLENISH: "5"
+      RATE_LIMIT_BURST: "10"
+      ROUTE_AUTH_URI: http://auth-service:8081
+      ROUTE_COURSE_URI: http://course-service:8082
+      ROUTE_ENROLL_URI: http://enrollment-service:8083
+    depends_on:
+      - auth-service
+      - course-service
+      - enrollment-service
+      - redis
+    ports:
+      - "8080:8080"
